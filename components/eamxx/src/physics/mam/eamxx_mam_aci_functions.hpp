@@ -196,7 +196,7 @@ void store_liquid_cloud_fraction(
       });
 }
 
-void call_function_dropmixnuc(
+void call_function_dropmixnuc(const int lid, const int kb, const int num_a1_idx,
     haero::ThreadTeamPolicy team_policy, const Real dt,
     mam_coupling::DryAtmosphere &dry_atmosphere, const MAMAci::view_2d rpdel,
     const MAMAci::const_view_2d kvh_mid, const MAMAci::view_2d kvh_int,
@@ -404,7 +404,7 @@ void call_function_dropmixnuc(
               }
             });
         team.team_barrier();
-        mam4::ndrop::dropmixnuc(
+        mam4::ndrop::dropmixnuc( lid,kb, num_a1_idx, icol,
             team, dt, ekat::subview(T_mid, icol), ekat::subview(p_mid, icol),
             ekat::subview(p_int, icol), ekat::subview(pdel, icol),
             ekat::subview(rpdel, icol),

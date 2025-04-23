@@ -284,6 +284,12 @@ void MAMAci::init_temporary_views() {
 //  INITIALIZE_IMPL
 // ================================================================
 void MAMAci::initialize_impl(const RunType run_type) {
+
+  for(int mode = 0; mode < mam_coupling::num_aero_modes(); ++mode) {
+    const std::string int_nmr_field_name =
+        mam_coupling::int_aero_nmr_field_name(mode);
+    add_invariant_check<FieldWithinIntervalCheck>(get_field_out(int_nmr_field_name), grid_,0,1.e11,false);
+  }    // end for loop for num modes
   // ------------------------------------------------------------------------
   // ## Runtime options
   // ------------------------------------------------------------------------
@@ -500,6 +506,17 @@ void MAMAci::run_impl(const double dt) {
 
   Kokkos::fence();
 
+  auto gid2lid = grid_->get_gid2lid_map();
+  const int gid = 51;
+  const int kb = 60;
+  const int num_a1_idx = 22;
+  auto lid = gid2lid.count(gid) == 1 ? gid2lid.at(gid) : -1;
+  auto h_num_a1 = Kokkos::create_mirror_view(dry_aero_.int_aero_nmr[0]);
+  if (lid != -1) {
+    Kokkos::deep_copy(h_num_a1, dry_aero_.int_aero_nmr[0]);
+    Kokkos::printf("ACI:lid = %d, h_num_a1= %e\n", lid, h_num_a1(lid,kb));
+  }
+
   haero::ThreadTeamPolicy team_policy(ncol_, Kokkos::AUTO);
 
   // FIXME: Temporary assignment of nc
@@ -554,7 +571,7 @@ void MAMAci::run_impl(const double dt) {
   //  Compute activated CCN number tendency (tendnd_) and updated
   //  cloud borne aerosols (stored in a work array) and interstitial
   //  aerosols tendencies
-  call_function_dropmixnuc(
+  call_function_dropmixnuc(lid,kb, num_a1_idx,
       team_policy, dt, dry_atm_, rpdel_, kvh_mid_, kvh_int_, wsub_, cloud_frac_,
       cloud_frac_prev_, dry_aero_, nlev_, top_lev_, enable_aero_vertical_mix_,
       // output
@@ -565,6 +582,14 @@ void MAMAci::run_impl(const double dt) {
       raercol_cw_, raercol_, state_q_work_, nact_, mact_,
       dropmixnuc_scratch_mem_);
   Kokkos::fence();  // wait for ptend_q_ to be computed.
+
+  if (lid != -1) {
+    auto h_ptend_q_ = Kokkos::create_mirror_view(ptend_q_[num_a1_idx]);
+    Kokkos::deep_copy(h_ptend_q_, ptend_q_[num_a1_idx]);
+    auto h_factnum_ = Kokkos::create_mirror_view(factnum_);
+    Kokkos::deep_copy(h_factnum_, factnum_);
+    Kokkos::printf("ACI:lid = %d, h_ptend_q_= %e factnum_num_a1 %e\n", lid, h_ptend_q_(lid,kb), h_factnum_(lid,num_a1_idx,kb));
+}
 
   Kokkos::deep_copy(ccn_0p02_,
                     Kokkos::subview(ccn_, Kokkos::ALL(), Kokkos::ALL(), 0));
@@ -609,7 +634,10 @@ void MAMAci::run_impl(const double dt) {
                                dry_aero_);
 
   // call post processing to convert dry mixing ratios to wet mixing ratios
-
+  if (lid != -1) {
+    Kokkos::deep_copy(h_num_a1, dry_aero_.int_aero_nmr[0]);
+    Kokkos::printf("ACI:END-lid = %d, h_num_a1= %e\n", lid, h_num_a1(lid,kb));
+  }
   post_process(wet_aero_, dry_aero_, dry_atm_);
   Kokkos::fence();  // wait before returning to calling function
 }
