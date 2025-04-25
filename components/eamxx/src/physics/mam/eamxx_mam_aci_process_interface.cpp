@@ -288,7 +288,7 @@ void MAMAci::initialize_impl(const RunType run_type) {
   for(int mode = 0; mode < mam_coupling::num_aero_modes(); ++mode) {
     const std::string int_nmr_field_name =
         mam_coupling::int_aero_nmr_field_name(mode);
-    add_invariant_check<FieldWithinIntervalCheck>(get_field_out(int_nmr_field_name), grid_,0,1.e11,false);
+    add_invariant_check<FieldWithinIntervalCheck>(get_field_out(int_nmr_field_name), grid_,-1,1.e11,false);
   }    // end for loop for num modes
   // ------------------------------------------------------------------------
   // ## Runtime options
@@ -508,7 +508,7 @@ void MAMAci::run_impl(const double dt) {
 
   auto gid2lid = grid_->get_gid2lid_map();
   const int gid = 51;
-  const int kb = 60;
+  const int kb = 60; //60;
   const int num_a1_idx = 22;
   auto lid = gid2lid.count(gid) == 1 ? gid2lid.at(gid) : -1;
   auto h_num_a1 = Kokkos::create_mirror_view(dry_aero_.int_aero_nmr[0]);
@@ -588,7 +588,7 @@ void MAMAci::run_impl(const double dt) {
     Kokkos::deep_copy(h_ptend_q_, ptend_q_[num_a1_idx]);
     auto h_factnum_ = Kokkos::create_mirror_view(factnum_);
     Kokkos::deep_copy(h_factnum_, factnum_);
-    Kokkos::printf("ACI:lid = %d, h_ptend_q_= %e factnum_num_a1 %e\n", lid, h_ptend_q_(lid,kb), h_factnum_(lid,num_a1_idx,kb));
+    Kokkos::printf("ACI:lid = %d, h_ptend_q_= %e factnum_num_a1=%e\n", lid, h_ptend_q_(lid,kb), h_factnum_(lid,0,kb));
 }
 
   Kokkos::deep_copy(ccn_0p02_,
