@@ -83,3 +83,5 @@
 	path = externals/mam4xx
 	url = git@github.com:eagles-project/mam4xx.git
 
+[submodule "mam4xx"]
+	url = git@github.com:eagles-project/mam4xx-dev.git
